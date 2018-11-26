@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:apachekafka="http://www.mulesoft.org/schema/mule/apachekafka" xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:json="http://www.mulesoft.org/schema/mule/json" xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd
+http://www.mulesoft.org/schema/mule/apachekafka http://www.mulesoft.org/schema/mule/apachekafka/current/mule-apachekafka.xsd">
+    <db:generic-config name="Generic_Database_Configuration" url="jdbc:hsqldb:hsql://localhost/" driverClassName="org.hsqldb.jdbcDriver" doc:name="Generic Database Configuration"/>
+    <http:listener-config name="HTTP_Listener_Configuration" host="0.0.0.0" port="8081" doc:name="HTTP Listener Configuration"/>
+    <flow name="testFlow">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="database" doc:name="HTTP"/>
+        <db:select config-ref="Generic_Database_Configuration" doc:name="Database">
+            <db:parameterized-query><![CDATA[select * from INFY]]></db:parameterized-query>
+        </db:select>
+        <json:object-to-json-transformer doc:name="Object to JSON"/>
+        <set-variable variableName="name" value="ramu" doc:name="Variable"/>
+        <set-session-variable variableName="id" value="777" doc:name="Session Variable"/>
+        <expression-component doc:name="Expression"><![CDATA[flowVars.name==message.inboundProperties['http.query.params'].name]]></expression-component>
+        <set-payload value="#[payload]" doc:name="Set Payload"/>
+        <logger message="#[server.dateTime.format('ddMMyyyy')]" level="INFO" doc:name="Logger"/>
+        <flow-ref name="testSub_Flow" doc:name="Flow Reference"/>
+    </flow>
+    <flow name="testFlow1">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="database1" doc:name="HTTP"/>
+        <logger message="afterhttp#[message.inboundProperties.'http.query.params'.name]" level="INFO" doc:name="Logger"/>
+        <expression-component doc:name="Expression"><![CDATA[flowVars.name=message.inboundProperties['http.query.params'].name]]></expression-component>
+        <logger message="endeed----------#[flowVars.name]" level="INFO" doc:name="Logger"/>
+        <set-payload value="#[message.inboundProperties.'http.query.params'.name],#[message.inboundProperties.'http.query.params'.age],#[message.inboundProperties.'http.query.params'.age&gt;18]" doc:name="Set Payload"/>
+        <logger message="#[payload]" level="INFO" doc:name="Logger"/>
+    </flow>
+    <flow name="testFlow2">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="database2" doc:name="HTTP"/>
+        <logger message="afterhttp#[message.inboundProperties.'http.query.params'.name]" level="INFO" doc:name="Logger"/>
+        <expression-component doc:name="Expression"><![CDATA[flowVars.name=message.inboundProperties.'http.query.params'.name]]></expression-component>
+        <logger message="endeed----------#[flowVars.name]" level="INFO" doc:name="Logger"/>
+        <set-payload value="#[['name':message.inboundProperties['http.query.params'].name,'age':message.inboundProperties['http.query.params'].age]]" doc:name="Set Payload"/>
+        <dw:transform-message doc:name="Transform Message">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/csv
+---
+[{
+	name:payload.name,
+	age:payload.age
+	
+}]]]></dw:set-payload>
+        </dw:transform-message>
+        <file:outbound-endpoint path="D:\New folder\sample files\in" outputPattern="DATAWEAVE.csv" responseTimeout="10000" doc:name="File"/>
+        <logger message="#[payload]" level="INFO" doc:name="Logger"/>
+    </flow>
+    <sub-flow name="testSub_Flow">
+        <logger message="#[flowVars.name]" level="INFO" doc:name="Logger"/>
+    </sub-flow>
+    <flow name="testFlow3">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="database3" doc:name="HTTP"/>
+        <logger message="afterhttp#[message.inboundProperties.'http.query.params'.name]" level="INFO" doc:name="Logger"/>
+        <expression-component doc:name="Expression"><![CDATA[flowVars.name=message.inboundProperties['http.query.params'].name]]></expression-component>
+        <logger message="endeed----------#[flowVars.name]" level="INFO" doc:name="Logger"/>
+        <set-payload value="
+#[['name':message.inboundProperties['http.query.params'].name,'age':message.inboundProperties['http.query.params'].age,'age_of':message.inboundProperties['http.query.params'].age&gt;18]]" doc:name="Set Payload"/>
+        <logger message="#[payload]" level="INFO" doc:name="Logger"/>
+    </flow>
+    <flow name="testFlow4">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="database4" doc:name="HTTP"/>
+        <json:json-to-object-transformer returnClass="java.lang.Object" doc:name="JSON to Object"/>
+        <expression-component doc:name="Expression"><![CDATA[flowVars.name=message.payload.name]]></expression-component>
+
+        <set-payload value="#[message.payload.name],#[message.payload.age],#[message.payload.age&gt;18]
+" doc:name="Set Payload"/>
+        <file:outbound-endpoint path="D:\New folder\sample files\in" responseTimeout="10000" doc:name="File"/>
+        <logger message="endeed----------#[flowVars.name]" level="INFO" doc:name="Logger"/>
+        <logger message="#[message.payload]" level="INFO" doc:name="Logger"/>
+    </flow>
+</mule>
